@@ -15,7 +15,6 @@ import 'package:google_fonts/google_fonts.dart';
 import 'package:intl/intl.dart';
 import 'package:toml/toml.dart';
 
-
 void main() {
   runApp(MyApp());
 }
@@ -36,9 +35,9 @@ class MyApp extends StatelessWidget {
 }
 
 class MyHomePage extends StatefulWidget {
-  MyHomePage({Key key, this.title}) : super(key: key);
+  MyHomePage({Key? key, this.title}) : super(key: key);
 
-  final String title;
+  final String? title;
 
   @override
   _MyHomePageState createState() => _MyHomePageState();
@@ -46,10 +45,10 @@ class MyHomePage extends StatefulWidget {
 
 class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateMixin {
   List<String> seen = [];
-  File imageFile;
+  File? imageFile;
   Color backgroundColor = Colors.white;
-  Timer timerAutoPlay;
-  Timer timerNav;
+  Timer? timerAutoPlay;
+  Timer? timerNav;
   bool loading = false;
   bool imageLocked = false;
   bool autoPlay = false;
@@ -57,8 +56,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   Config conf = Config();
   String errorMessage = "";
 
-  Animation a;
-  AnimationController ac;
+  late Animation a;
+  late AnimationController ac;
 
   @override
   void initState() {
@@ -71,10 +70,11 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     super.initState();
 
     // TODO show loading state, if error occurs display it nicely.
-    loadConfig(getUserDirectory() + '\\.photo_frame').then((value) {
+    loadConfig(path.join(getUserDirectory(), '.photo_frame')).then((value) {
       print("let's go?");
       conf = value;
       loading = false;
+      autoPlay = conf.autoPlay;
       _displayNextImage();
       return null;
     }).catchError((e) {
@@ -93,7 +93,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     }
     imageLocked = true;
     if (timerAutoPlay != null) {
-      timerAutoPlay.cancel();
+      timerAutoPlay!.cancel();
       timerAutoPlay = null;
     }
     String filepath = getNextImage(conf.directory, seen);
@@ -117,9 +117,11 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
     setState(() {
       imageFile = File(filepath);
       if (palette.mutedColor != null) {
-        backgroundColor = palette.mutedColor.color;
+        backgroundColor = palette.mutedColor!.color;
+      } else if (palette.dominantColor != null ) {
+        backgroundColor = palette.dominantColor!.color;
       } else {
-        backgroundColor = palette.dominantColor.color;
+        backgroundColor = Colors.black;
       }
       ac..forward();
     });
@@ -136,7 +138,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
 
   void _showNav() async {
     if (timerNav != null) {
-      timerNav.cancel();
+      timerNav!.cancel();
     }
     setState(() {
       showNav = true;
@@ -161,7 +163,7 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
   void _onTapToggleAutoPlay() {
     print('onTapToggleAutoPlay!');
     if (autoPlay == true && timerAutoPlay != null) {
-      timerAutoPlay.cancel();
+      timerAutoPlay!.cancel();
       timerAutoPlay = null;
     } else if (autoPlay != true) {
       _startAutoPlay();
@@ -191,10 +193,6 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
       ));
     }
 
-    if (ac == null) {
-      return Scaffold();
-    }
-
     List<Shadow> shadows = [];// [Shadow(color: Colors.black, offset: Offset.fromDirection(0, 0.0), blurRadius: 3)];
     var font = GoogleFonts.poppins(
       fontWeight: FontWeight.normal,
@@ -211,8 +209,8 @@ class _MyHomePageState extends State<MyHomePage> with SingleTickerProviderStateM
             duration: Duration(milliseconds: 1000),
           ),
           imageFile == null ? Container() : Center(child: FadeTransition(
-              opacity: a,
-              child: Image.file(imageFile),
+              opacity: a as Animation<double>,
+              child: Image.file(imageFile!),
             ),
           ),
           Column(
@@ -317,6 +315,7 @@ String getNextImage(Directory dir, List<String> omit) {
 class Config {
   Directory directory = Directory('.');
   Duration autoPlayDuration = Duration(seconds: 10);
+  bool autoPlay = false;
 }
 
 Future<Config> loadConfig(String filename) async {
@@ -330,6 +329,9 @@ Future<Config> loadConfig(String filename) async {
   if (m['directory'] is String) {
     c.directory = Directory(m['directory']);
   }
+  if (m['autoplay'] is bool) {
+    c.autoPlay = m['autoplay'] ?? false;
+  }
   await Future.delayed(Duration(milliseconds: 1000));
   return c;
 }
@@ -340,10 +342,10 @@ String getUserDirectory() {
   switch (Platform.operatingSystem) {
     case "linux":
     case "macos":
-      str = env['HOME'];
+      str = env['HOME'] ?? '';
       break;
     case "windows":
-      str = env['UserProfile'];
+      str = env['UserProfile'] ?? '';
       break;
   }
   return str;
